@@ -39,7 +39,7 @@ public:
     static const ll bytes_to_ll(const char arr[]) {
         ll ret = 0;
         for (int i = 0; i < 8; i++)
-            ret |= (((unsigned char)arr[i]) << (i * 8));
+            ret |= (((unsigned char) arr[i]) << (i * 8));
         return ret;
     }
 };
@@ -246,7 +246,8 @@ signed main(int args, char *argv[]) {
         outputFile.close();
 
         return 0;
-    } else if (arg[2] == "d") {
+    }
+    else if (arg[2] == "d") {
         ofstream outputFile(arg[1] + "out", ios::binary);
 
         ll bytesToRead;
