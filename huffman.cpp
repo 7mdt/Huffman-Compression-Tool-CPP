@@ -1,7 +1,13 @@
 // INITIALIZE POINTERS TO NULL IF YOU'RE NOT GONNA FUCKING USE THEM
 
-#include <bits/stdc++.h>
+#include <iostream>
+#include <deque>
+#include <vector>
+#include <fstream>
+#include <cstdint>
+#include <unordered_map>
 
+#define str(s) to_string(s)
 #define sz(s) (int)(s.size())
 
 using namespace std;
@@ -16,17 +22,34 @@ struct node{
 	node(char val, ll freq, node *left, node *right) : val(val), freq(freq), left(left), right(right) {}
 };
 
-class minHeap{
+class convert{
+public:
+	static char* ll_to_bytes(const ll& a){
+		char* ret = new char[8];
+		for(int i = 0; i < 8; i++)
+			ret[i] = (a >> (8 * i)) & 0xFF;
+		return ret;
+	}
+	static ll bytes_to_ll(const char* arr){
+		ll ret = 0;
+		for(int i = 0; i < 8; i++)
+			ret |= (ll)(arr[i]) << (64 - i * 8);
+		return ret;
+	}
+};
+
+class min_heap{
 private:
 	size_t size = 0, capacity = 1;
 	node **arr = nullptr;
 
 	int p(int i){ return ((i - 1) >> 1); }
-	int l(int i){ return ((i << 1) + 1); }
+	int l(int i){ return ((i << 1) | 1); }
 	int r(int i){ return ((i << 1) + 2); }
 
 	void bubbleUp(int i){
-		if(i <= 0 || arr[i]->freq >= arr[p(i)]->freq)
+		if(i <= 0 || arr[p(i)]->freq > arr[i]->freq ||
+			(arr[p(i)]->freq == arr[i]->freq && arr[p(i)]->val > arr[i]->val))
 			return;
 		swap(arr[i], arr[p(i)]);
 		bubbleUp(p(i));
@@ -36,9 +59,11 @@ private:
 		int left = l(i);
 		int right = r(i);
 		int mn = i;
-		if(left < size && arr[left]->freq < arr[i]->freq)
+		if(left < size && (arr[left]->freq < arr[i]->freq || 
+			(arr[left]->freq == arr[i]->freq && arr[left]->val < arr[i]->val)))
 			mn = left;
-		if(right < size && arr[right]->freq < arr[mn]->freq)
+		if(right < size && (arr[right]->freq < arr[mn]->freq ||
+			(arr[right]->freq == arr[mn]->freq && arr[right]->val < arr[i]->val)))
 			mn = right;
 		if(mn != i){
 			swap(arr[mn], arr[i]);
@@ -48,7 +73,7 @@ private:
 
 public:
 	
-	minHeap(){ arr = new node*[capacity]; }
+	min_heap(){ arr = new node*[capacity]; }
 	
 	int len() { return size; }
 
@@ -77,25 +102,22 @@ public:
 	}
 };
 
+class huffman_tree{
 
-class HuffmanTree{
+public:
+	uint64_t outputBitLength = 0, inputLength = 0;
 
 private:
 	string path;
 	node *root = nullptr;
 	unordered_map<char, string> codes;
-	unordered_map<char, size_t> freq;
-	uint64_t outputBitLength = 0, inputLength = 0;
 	
-	void makeCodes(node* root){
-		if(root->left == nullptr && root->right == nullptr){
-		    codes[root->val] = path;
-			cout << root->val << ' ' << path << '\n';
-			return;
-		}
+	void make_codes(node* root){
+		if(root->left == nullptr && root->right == nullptr)
+			return void(codes[root->val] = path);
 
-		path += '0', makeCodes(root->left), path.pop_back();
-	    path += '1', makeCodes(root->right), path.pop_back();
+		path += '0', make_codes(root->left), path.pop_back();
+	    path += '1', make_codes(root->right), path.pop_back();
 	}
 
 	void add(const string& s, deque<char>& buf){
@@ -108,27 +130,17 @@ private:
 	char toBin(deque<char>& buf){
 		char ret = 0x00;
 		for(int i = 0; i < 8; i++){
-			ret |= ((buf[0] == '1') << (7 - i));
+			ret |= (buf[0] == '1') << (7 - i);
 			buf.pop_front();
 		}
 		return ret;
 	}
 
 public:
-	HuffmanTree(ifstream& inputFile) {
-		char byte;
-		while(inputFile.read(&byte, 1)){
-			freq[byte]++;
-			inputLength++;
-		}
-		inputFile.clear();
-		inputFile.seekg(0);
-	}
-	
-	string getCode(char s){ return codes[s]; }
-
-	void buildTree(){
-		minHeap heap;
+	huffman_tree(unordered_map<char, ll>& freq) {
+		min_heap heap;
+		for(auto& [f, s] : freq)
+			inputLength += s;
 
 		for(auto &[f, s] : freq)
 		    heap.insert(new node(f, s));
@@ -140,10 +152,10 @@ public:
 		}
 
 		root = heap.extract();
-		makeCodes(root);
-
-		return;
+		make_codes(root);
 	}
+
+	string getCode(char s){ return codes[s]; }
 
 	void encode(ifstream& inputFile, ofstream& outputFile){
 		char byte, toWrite;
@@ -166,10 +178,11 @@ public:
 		toWrite = toBin(buf);
 		outputFile.write(&toWrite, 1);
 
-	    for(uint64_t mask = (0xFFULL << 56), shift = 56; mask > 0; mask >>= 8, shift -= 8){
-			toWrite = (mask & outputBitLength) >> shift;
+		for(int i = 0; i < 8; i++){
+			toWrite = (outputBitLength >> (8 * i)) & 0xFF;
 			outputFile.write(&toWrite, 1);
 		}
+
 
 		inputFile.clear();
 		inputFile.seekg(0);
@@ -177,7 +190,6 @@ public:
 		return;
 	}
 };
-
 
 signed main(int args, char* argv[]){
     ios_base::sync_with_stdio(false);
@@ -189,36 +201,40 @@ signed main(int args, char* argv[]){
 	for(int i = 0; i < args; i++)
 		arg.emplace_back(argv[i]);
 
-	if(sz(arg) != 4 || (arg[2] != "e" && arg[2] != "d")) {
-		cerr << "usage:\n./huffman input e\\d output\n";
-		return -1;
-	}
+	if(sz(arg) != 4 || (arg[2] != "e" && arg[2] != "d"))
+		throw runtime_error("usage:\n./huffman input e/d output");
 
 	ifstream inputFile(arg[1], ios::binary);
 
-	if(!inputFile) {
-		cerr << "error opening file\n";
-		return -2;
-	}
+	if(!inputFile)
+		throw runtime_error("incorrect input path!");
 
-	string outputPath = arg[1];
-
-	while(!outputPath.empty() && outputPath.back() != '/')
-		outputPath.pop_back();
-
-	outputPath += arg[3] + ".bin";
-
-	ofstream outputFile(outputPath, ios::binary);
+	ofstream outputFile(arg[1] + ".bin", ios::binary);
 
 	if(arg[2] == "e") {
-		HuffmanTree huffman(inputFile);
-		huffman.buildTree();
-		// huffman.encodeTree(ouputFile); // will implement tree encoding soon
-		huffman.encode(inputFile, outputFile);
+		unordered_map<char, ll> freq;
+		
+		// char byte;
+		
+		// while(inputFile.read(&byte, 1))
+		// 	freq[byte]++;
+
+		// inputFile.clear();
+		// inputFile.seekg(0);
+
+		// huffman_tree huffman(freq);
+		// huffman.encode(inputFile, outputFile);
+		char* test = convert::ll_to_bytes(0x3f3f3f3f);
+		for(int i = 0; test[i]; i++) cout << test[i];
+		cout << '\n';
+		cout << convert::bytes_to_ll(test) << '\n';
+
 		inputFile.close();
 		outputFile.close();
 
 		return 0;
 	}
+	else if(arg[2] == "d") {
 
+	}
 }
