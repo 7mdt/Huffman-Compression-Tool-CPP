@@ -143,8 +143,11 @@ public:
     huffman_tree(hash_map<char, ll> &freq) {
         min_heap heap;
 
-        for (auto &[f, s]: freq)
+        for (auto &x: freq) {
+            auto f = x.first;
+            auto s = x.second;
             heap.insert(new node(f, s));
+        }
 
         while (heap.len() > 1) {
             node *l = heap.extract();
@@ -161,11 +164,13 @@ public:
         input_file.clear();
         input_file.seekg(0);
 
-        char to_write = sz(codes);
+        char to_write;
         deque<char> buf;
 
-        output_file.write(&to_write, 1);
-        for (const auto &[f, s]: freq) {
+        output_file.write(convert::ll_to_bytes(sz(codes)), 8);
+        for (const auto &x: freq) {
+            auto f = x.first;
+            auto s = x.second;
             output_file.write(&f, 1);
             output_file.write(convert::ll_to_bytes(s), 8);
         }
@@ -248,10 +253,12 @@ signed main(int args, char *argv[]) {
 
         ofstream output_file(arg[1].substr(0, sz(arg[1]) - 4), ios::binary);
 
-        char freq_length, val, buffer[8];
+        char val, buffer[8];
+        ll freq_length;
         hash_map<char, ll> freq;
 
-        input_file.read(&freq_length, 1);
+        input_file.read(buffer, 8);
+        freq_length = convert::bytes_to_ll(buffer);
 
         for (int i = 0; i < freq_length; i++) {
             input_file.read(&val, 1);
